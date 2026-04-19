@@ -109,7 +109,7 @@ executeCombined parserPath interpPath test = do
     then
       return
         TestCaseReport
-        { tcrResult = result,
+        { tcrResult = ParseFail,
           tcrParserExitCode = Just parserCode,
           tcrInterpreterExitCode = Nothing,
           tcrParserStdout = Just pOut,
@@ -119,21 +119,21 @@ executeCombined parserPath interpPath test = do
           tcrDiffOutput = Nothing
         }
     else withTempSource (tcdSourceCode test) $ \tmpPath -> do
-      (exitInterpCode, iOut, iErr) <- runInterpreter interpPath (tcdStdinFile test)
-        let interpCode = exitCodeToInt exitInterpCode
-            expectedCodes = fromMaybe [] (tcdExpectedInterpreterExitCodes test)
-        (result, diffOut) <- checkInterpreterResult interpCode expectedCodes iOut (tcdExpectedStdoutFile test)
-        return
-          TestCaseReport
-            { tcrResult = result,
-              tcrParserExitCode = Just parserCode,
-              tcrInterpreterExitCode = Just interpCode,
-              tcrParserStdout = Nothing,
-              tcrParserStderr = Nothing,
-              tcrInterpreterStdout = Just iOut,
-              tcrInterpreterStderr = Just iErr,
-              tcrDiffOutput = diffOut
-            }
+      (exitInterpCode, iOut, iErr) <- runInterpreter interpPath tmpPath (tcdStdinFile test)
+      let interpCode = exitCodeToInt exitInterpCode
+          expectedCodes = fromMaybe [] (tcdExpectedInterpreterExitCodes test)
+      (result, diffOut) <- checkInterpreterResult interpCode expectedCodes iOut (tcdExpectedStdoutFile test)
+      return
+        TestCaseReport
+          { tcrResult = result,
+            tcrParserExitCode = Just parserCode,
+            tcrInterpreterExitCode = Just interpCode,
+            tcrParserStdout = Nothing,
+            tcrParserStderr = Nothing,
+            tcrInterpreterStdout = Just iOut,
+            tcrInterpreterStderr = Just iErr,
+            tcrDiffOutput = diffOut
+          }
 
 -- ---------------------------------------------------------------------------
 -- Process wrappers
