@@ -102,8 +102,38 @@ executeExecuteOnly interpPath test =
 -- FLP: Implement this function. You'll use @withTempSource@ here.
 executeCombined :: FilePath -> FilePath -> TestCaseDefinition -> IO TestCaseReport
 executeCombined parserPath interpPath test = do
-  -- ?
-  return undefined
+  (parserExitCode, pOut, pErr) <- runParser parserPath (tcdSourceCode test)
+  let parserCode = exitCodeToInt parserExitCode
+      expectedParserCodes = fromMaybe [] (tcdExpectedParserExitCodes test)
+  if parserCode `notElem` expectedParserCodes
+    then
+      return
+        TestCaseReport
+        { tcrResult = result,
+          tcrParserExitCode = Just parserCode,
+          tcrInterpreterExitCode = Nothing,
+          tcrParserStdout = Just pOut,
+          tcrParserStderr = Just pErr,
+          tcrInterpreterStdout = Nothing,
+          tcrInterpreterStderr = Nothing,
+          tcrDiffOutput = Nothing
+        }
+    else withTempSource (tcdSourceCode test) $ \tmpPath -> do
+      (exitInterpCode, iOut, iErr) <- runInterpreter interpPath (tcdStdinFile test)
+        let interpCode = exitCodeToInt exitInterpCode
+            expectedCodes = fromMaybe [] (tcdExpectedInterpreterExitCodes test)
+        (result, diffOut) <- checkInterpreterResult interpCode expectedCodes iOut (tcdExpectedStdoutFile test)
+        return
+          TestCaseReport
+            { tcrResult = result,
+              tcrParserExitCode = Just parserCode,
+              tcrInterpreterExitCode = Just interpCode,
+              tcrParserStdout = Nothing,
+              tcrParserStderr = Nothing,
+              tcrInterpreterStdout = Just iOut,
+              tcrInterpreterStderr = Just iErr,
+              tcrDiffOutput = diffOut
+            }
 
 -- ---------------------------------------------------------------------------
 -- Process wrappers
