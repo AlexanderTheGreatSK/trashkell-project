@@ -16,13 +16,13 @@ module SOLTest.Executor
 where
 
 import Control.Exception (IOException, try)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust, isNothing)
 import SOLTest.Types
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist, getPermissions, executable)
 import System.Exit (ExitCode (..))
 import System.IO (hClose, hPutStr)
 import System.IO.Temp (withSystemTempFile)
-import System.Process (proc, readCreateProcessWithExitCode)
+import System.Process (proc, readCreateProcessWithExitCode, readProcessWithExitCode)
 
 -- ---------------------------------------------------------------------------
 -- Public API
@@ -187,7 +187,13 @@ checkInterpreterResult ::
   -- | Path to the @.out@ file, if present.
   Maybe FilePath ->
   IO (TestResult, Maybe String)
-checkInterpreterResult actualCode expectedCodes iOut mOutFile = undefined
+checkInterpreterResult actualCode expectedCodes iOut mOutFile = do
+  let codeCheck = null expectedCodes || actualCode `elem` expectedCodes
+  if not codeCheck
+    then return (IntFail, Nothing)
+    else maybe (return (Passed, Nothing)) (runDiffOnOutput iOut) mOutFile
+
+
 
 -- | Write a string to a temporary file and pass its path to an action.
 -- The file is deleted when the action returns.
@@ -203,7 +209,14 @@ withTempSource content action =
 --
 -- FLP: Implement this function. It will start similarly to @withTempSource@.
 runDiffOnOutput :: String -> FilePath -> IO (TestResult, Maybe String)
-runDiffOnOutput iOut outFile = undefined
+runDiffOnOutput iOut outFile =
+  withSystemTempFile "sol-source.xml" $ \tmpPath tmpHandle -> do
+    hPutStr tmpHandle iOut
+    hClose tmpHandle
+    (exitCode, out, err) <- readProcessWithExitCode "diff" [outFile, tmpPath] ""
+    if exitCode == ExitSuccess then return (Passed, Nothing)
+    else return (DiffFail, Just (if null out then err else out))
+    
 
 -- | Ensure an executable path is provided and the file is executable,
 -- then run an action with it.  Returns 'Left' 'CannotExecute' if the
@@ -237,9 +250,12 @@ checkExecutable path = do
   result <- try (doesFileExist path) :: IO (Either IOException Bool)
   case result of
     Left err -> return (Just (UnexecutedReason CannotExecute (Just (show err))))
-    Right False -> undefined -- ???
-    Right True -> undefined -- ???
-  return Nothing -- this probably won't be here
+    Right False -> return (Just (UnexecutedReason CannotExecute Nothing))
+    Right True -> do
+      perms <- getPermissions path
+      if executable perms
+        then return Nothing
+        else return (Just (UnexecutedReason CannotExecute Nothing))
 
 -- | Convert 'ExitCode' to an 'Int'.
 exitCodeToInt :: ExitCode -> Int
