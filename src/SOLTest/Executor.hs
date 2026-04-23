@@ -16,7 +16,7 @@ module SOLTest.Executor
 where
 
 import Control.Exception (IOException, try)
-import Data.Maybe (fromMaybe, fromJust, isNothing)
+import Data.Maybe (fromMaybe)
 import SOLTest.Types
 import System.Directory (doesFileExist, getPermissions, executable)
 import System.Exit (ExitCode (..))
