@@ -17,7 +17,8 @@ where
 
 import Data.Char (isSpace)
 import SOLTest.Types
-
+import Data.List (partition)
+import System.Posix.Internals (c_getpid)
 -- ---------------------------------------------------------------------------
 -- Public API
 -- ---------------------------------------------------------------------------
@@ -36,7 +37,12 @@ filterTests ::
   FilterSpec ->
   [TestCaseDefinition] ->
   ([TestCaseDefinition], [TestCaseDefinition])
-filterTests spec tests = undefined
+filterTests spec = partition isSelected
+  where 
+    isSelected test = included && not excluded
+        where
+          included = null (fsIncludes spec) || matchesAny (fsUseRegex spec) (fsIncludes spec) test
+          excluded = not (null (fsExcludes spec)) && matchesAny (fsUseRegex spec) (fsExcludes spec) test
 
 -- | Check whether a test matches at least one criterion in the list.
 matchesAny :: Bool -> [FilterCriterion] -> TestCaseDefinition -> Bool
@@ -53,7 +59,10 @@ matchesAny useRegex criteria test =
 -- bonus extension, you can either remove the first argument and update the usages,
 -- or you can simply ignore the value.
 matchesCriterion :: Bool -> TestCaseDefinition -> FilterCriterion -> Bool
-matchesCriterion useRegex test criterion = undefined
+matchesCriterion _ test criterion = case criterion of
+  ByAny s -> s == tcdName test || s == tcdCategory test || s `elem` tcdTags test
+  ByCategory s -> s == tcdCategory test
+  ByTag s    -> s `elem` tcdTags test
 
 -- | Trim leading and trailing whitespace from a filter identifier.
 trimFilterId :: String -> String
