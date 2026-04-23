@@ -13,7 +13,7 @@ module SOLTest.Parser
     determineTestType,
   )
 where
-
+import Text.Read (readMaybe)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import SOLTest.Types
@@ -78,7 +78,9 @@ emptyHeader =
 --
 -- FLP: Implement this function.
 splitHeaderBody :: String -> ([String], String)
-splitHeaderBody content = undefined
+splitHeaderBody content =
+  let (headers, body) = break (all isSpace) (lines content)
+  in (headers, unlines $ drop 1 body)
 
 -- ---------------------------------------------------------------------------
 -- Header line parsing
@@ -96,7 +98,14 @@ parseHeaderLine hdr line
   | "*** " `isPrefixOf` line =
       let val = trim (drop 4 line)
        in Right hdr {phDescription = Just val}
-  -- ???
+  | "** " `isPrefixOf` line =
+      let val = trim (drop 3 line)
+       in Right hdr {phDescription = Just val}
+  | "* " `isPrefixOf` line =
+      let val = trim (drop 2 line)
+       in case readMaybe val of
+          Just n  -> Right hdr { phWeight = Just n }
+          Nothing -> Left $ "ERROR:" ++ val
   | otherwise = Right hdr -- unknown or comment line: skip
 
 -- | Parse all header lines into a 'ParsedHeader'.
