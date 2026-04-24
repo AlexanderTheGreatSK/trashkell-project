@@ -129,20 +129,20 @@ computeStats foundCount loadedCount selectedCount mCategoryResults =
 -- of categories in each bin is accumulated. All ten bins are always present in
 -- the result, even if their count is 0.
 --
--- This function is all done by LLM friend. I just pasted this here so I am NOT author. It was not one shot print, I helped to debug this, but I am not he author.
+-- I remade this function, first it was generated, now it is modified.
+-- insane stuff no idea how to know this xD
 computeHistogram :: Map String CategoryReport -> Map String Int
 computeHistogram = Map.foldl' accumulate emptyHistogram
   where
-    emptyHistogram = Map.fromList [(show 0 ++ "." ++ show n, 0) | n <- [0..9]]
+    emptyHistogram = Map.fromList [(binLabel (0 :: Int) n, 0) | n <- [0..9 :: Int]]
+    accumulate hist report = Map.insertWith (+) (binFor report) 1 hist
     binFor report = rateToBin rate
       where
-        total  = crTotalPoints report
-        passed = crPassedPoints report
-        rate   = if total == 0
-                   then 0.0
-                   else fromIntegral passed / fromIntegral total :: Double
-    accumulate :: Map String Int -> CategoryReport -> Map String Int
-    accumulate hist report = Map.insertWith (+) (binFor report) 1 hist
+        rate = if crTotalPoints report == 0
+                 then 0.0
+                 else fromIntegral (crPassedPoints report)
+                    / fromIntegral (crTotalPoints report) :: Double
+    binLabel major minor = show major ++ "." ++ show minor
 
 
 -- | Map a pass rate in @[0, 1]@ to a histogram bin key.
