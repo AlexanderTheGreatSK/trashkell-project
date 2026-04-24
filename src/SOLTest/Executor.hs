@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- | Executing test cases by running external parser and interpreter processes.
 --
 -- Each test case is executed according to its 'TestCaseType':
@@ -99,7 +101,7 @@ executeExecuteOnly interpPath test =
 
 -- | Execute a 'Combined' test case.
 --
--- FLP: Implement this function. You'll use @withTempSource@ here.
+-- This function I made alone :) copy paste from the functions above, no LLM at all !!!
 executeCombined :: FilePath -> FilePath -> TestCaseDefinition -> IO TestCaseReport
 executeCombined parserPath interpPath test = do
   (parserExitCode, pOut, pErr) <- runParser parserPath (tcdSourceCode test)
@@ -176,7 +178,7 @@ runDiff actualFile expectedFile = do
 -- Runs diff only when the interpreter exited with code 0 AND a @.out@ file
 -- is present.
 --
--- FLP: Implement this function.
+-- First I tried to generate thes function, but LLM was lost. So I took its "solution" and make it work. It would be easier to made it from zero and not to fix junk code :/.
 checkInterpreterResult ::
   -- | Actual interpreter exit code.
   Int ->
@@ -207,7 +209,7 @@ withTempSource content action =
 -- | Write the interpreter stdout to a temp file and diff it against @.out@.
 -- The file is deleted when the action returns.
 --
--- FLP: Implement this function. It will start similarly to @withTempSource@.
+-- This function is almost made by me, I run to some errors at the last two lines and LLM was helping me to debug and improve my solution.
 runDiffOnOutput :: String -> FilePath -> IO (TestResult, Maybe String)
 runDiffOnOutput iOut outFile =
   withSystemTempFile "sol-source.xml" $ \tmpPath tmpHandle -> do
@@ -243,19 +245,20 @@ withExecutable (Just path) action = do
 -- The IO action returns 'Nothing' if the file is usable, or 'Just'
 -- an 'UnexecutedReason' describing the problem.
 --
--- FLP: Implement this function. The following functions may come in handy:
---      @doesFileExist@, @getPermissions@, @executable@
+-- I started alone but I fell to the hole, where I had to use monad, but also the lambda case, thats why there is the forst line.
+-- LLM helped me to what to fix (typing the try :: IO (Either IOException Bool and \case, i tried lambda but i shoot my leg :( )
 checkExecutable :: FilePath -> IO (Maybe UnexecutedReason)
-checkExecutable path = do
-  result <- try (doesFileExist path) :: IO (Either IOException Bool)
-  case result of
-    Left err -> return (Just (UnexecutedReason CannotExecute (Just (show err))))
-    Right False -> return (Just (UnexecutedReason CannotExecute Nothing))
+checkExecutable path =
+  (try (doesFileExist path) :: IO (Either IOException Bool)) >>= \case
+    Left err -> bail (Just (show err))
+    Right False -> bail Nothing
     Right True -> do
       perms <- getPermissions path
       if executable perms
         then return Nothing
-        else return (Just (UnexecutedReason CannotExecute Nothing))
+        else bail Nothing
+  where
+    bail = return . Just . UnexecutedReason CannotExecute
 
 -- | Convert 'ExitCode' to an 'Int'.
 exitCodeToInt :: ExitCode -> Int

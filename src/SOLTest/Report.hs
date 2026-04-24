@@ -20,7 +20,8 @@ import SOLTest.Types
       TestCaseReport(tcrResult),
       TestReport(..),
       TestStats (TestStats, tsFoundTestFiles, tsLoadedTests, tsSelectedTests, tsPassedTests, tsHistogram),
-      UnexecutedReason
+      UnexecutedReason,
+      TestResult(Passed)
     )
 
 -- ---------------------------------------------------------------------------
@@ -62,43 +63,38 @@ buildReport discovered unexecuted mResults selected foundCount =
 -- one per category.
 --
 -- The @definitions@ list is used to look up each test's category and points.
---
--- FLP: Implement this function. The following functions may (or may not) come in handy:
---      @Map.fromList@, @Map.foldlWithKey'@, @Map.empty@, @Map.lookup@, @Map.insertWith@,
---      @Map.map@, @Map.fromList@
+-- This function was partly made by LLM, but I coded parts that were missing, and then it obv was not working
+-- so I was debugging it with my LLM helper - really nasty function
 groupByCategory :: [TestCaseDefinition] -> Map String TestCaseReport -> Map String CategoryReport
-groupByCategory definitions =
-  Map.foldlWithKey' accumulate Map.empty
+groupByCategory definitions = Map.foldlWithKey' accumulate Map.empty
   where
     defMap = Map.fromList [(tcdName d, d) | d <- definitions]
+    accumulate acc testName report = 
+      case Map.lookup testName defMap of
+        Nothing  -> acc
+        Just def -> Map.insertWith (merge def report testName) (tcdCategory def) (fresh def report testName) acc
+      
+    fresh def report testName = CategoryReport
+      { 
+        crTotalPoints  = tcdPoints def,
+        crPassedPoints = points def report,
+        crTestResults  = Map.singleton testName report
+      }
+    merge def report testName _ old = old
+      { 
+        crTotalPoints  = crTotalPoints old + tcdPoints def,
+        crPassedPoints = crPassedPoints old + points def report,
+        crTestResults  = Map.insert testName report (crTestResults old)
+      }
+    points def report = if tcrResult report == Passed then tcdPoints def else 0
 
-    accumulate acc testName report
-      | Just def <- Map.lookup testName defMap = addReport def acc testName report
-      | otherwise = acc
-
-    addReport def acc testName report =
-      Map.insertWith (\_ old -> mergeCat def report testName old) (tcdCategory def) newCat acc
-      where
-        newCat = CategoryReport
-                   { crTotalPoints  = tcdPoints def
-                   , crPassedPoints = if passed def report then tcdPoints def else 0
-                   , crTestResults  = Map.fromList [(testName, report)]
-                   }
-
-    mergeCat def report testName old =
-      old
-        { crTotalPoints  = crTotalPoints old + tcdPoints def
-        , crPassedPoints = crPassedPoints old + (if passed def report then tcdPoints def else 0)
-        , crTestResults  = Map.insertWith const testName report (crTestResults old)
-        }
-    passed _def report = tcrResult report == Passed
 -- ---------------------------------------------------------------------------
 -- Statistics
 -- ---------------------------------------------------------------------------
 
 -- | Compute the 'TestStats' from available information.
 --
--- FLP: Implement this function. You'll use @computeHistogram@ here.
+-- This function was done by me :)
 computeStats ::
   -- | Total @.test@ files found on disk.
   Int ->
@@ -133,7 +129,7 @@ computeStats foundCount loadedCount selectedCount mCategoryResults =
 -- of categories in each bin is accumulated. All ten bins are always present in
 -- the result, even if their count is 0.
 --
--- FLP: Implement this function.
+-- This function is all done by LLM friend. I just pasted this here so I am NOT author. It was not one shot print, I helped to debug this, but I am not he author.
 computeHistogram :: Map String CategoryReport -> Map String Int
 computeHistogram = Map.foldl' accumulate emptyHistogram
   where

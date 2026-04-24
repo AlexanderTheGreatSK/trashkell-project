@@ -18,7 +18,6 @@ where
 import Data.Char (isSpace)
 import SOLTest.Types
 import Data.List (partition)
-import System.Posix.Internals (c_getpid)
 -- ---------------------------------------------------------------------------
 -- Public API
 -- ---------------------------------------------------------------------------
@@ -32,17 +31,17 @@ import System.Posix.Internals (c_getpid)
 --
 -- The union of @selected@ and @filteredOut@ always equals the input list.
 --
--- FLP: Implement this function using @matchesAny@ and @matchesCriterion@.
+-- I let the LLM to code something. ofc I had no idea what it does, so I figure it out and improved it
 filterTests ::
   FilterSpec ->
   [TestCaseDefinition] ->
   ([TestCaseDefinition], [TestCaseDefinition])
 filterTests spec = partition isSelected
   where 
-    isSelected test = included && not excluded
+    isSelected test = included test && not (excluded test)
         where
-          included = null (fsIncludes spec) || matchesAny (fsUseRegex spec) (fsIncludes spec) test
-          excluded = not (null (fsExcludes spec)) && matchesAny (fsUseRegex spec) (fsExcludes spec) test
+          included localTest = null (fsIncludes spec) || matchesAny (fsUseRegex spec) (fsIncludes spec) localTest
+          excluded localTest = not (null (fsExcludes spec)) && matchesAny (fsUseRegex spec) (fsExcludes spec) localTest
 
 -- | Check whether a test matches at least one criterion in the list.
 matchesAny :: Bool -> [FilterCriterion] -> TestCaseDefinition -> Bool
@@ -55,9 +54,7 @@ matchesAny useRegex criteria test =
 -- When @useRegex@ is 'True', the criterion value is treated as a POSIX
 -- regular expression matched against the relevant field(s).
 --
--- FLP: Implement this function. If you're not implementing the regex matching
--- bonus extension, you can either remove the first argument and update the usages,
--- or you can simply ignore the value.
+-- Cooking with LLM, I have no idea what to do, should I implement it when I dont want the regex bonus ?
 matchesCriterion :: Bool -> TestCaseDefinition -> FilterCriterion -> Bool
 matchesCriterion _ test criterion = case criterion of
   ByAny s -> s == tcdName test || s == tcdCategory test || s `elem` tcdTags test

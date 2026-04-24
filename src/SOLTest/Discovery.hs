@@ -15,9 +15,7 @@ import Control.Monad (forM)
 -- Returns a list of 'TestCaseFile' records, one per @.test@ file found.
 -- The list is ordered by the file system traversal order (not sorted).
 --
--- FLP: Implement this function. The following functions may come in handy:
---      @doesDirectoryExist@, @takeExtension@, @forM@ or @mapM@,
---      @findCompanionFiles@ (below).
+-- Full LLM prompt function. I am not the author.
 discoverTests :: Bool -> FilePath -> IO [TestCaseFile]
 discoverTests recursive dir = do
   entries <- listDirectory dir
@@ -28,7 +26,7 @@ discoverTests recursive dir = do
       else if takeExtension path == ".test"
         then (:[]) <$> findCompanionFiles path
         else return []
-  return (concat results) -- replace [] with your list of discovered TestCaseFile
+  return (concat results)
 
 -- | Build a 'TestCaseFile' for a given @.test@ file path, checking for
 -- companion @.in@ and @.out@ files in the same directory.

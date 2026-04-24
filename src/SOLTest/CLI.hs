@@ -151,7 +151,7 @@ filterSpecParser =
 
 -- | Assemble raw filter string lists into a 'FilterSpec'.
 --
--- FLP: Implement this function (read the long comment above first).
+-- First I tried to make this function alone and it was not working, after a little help of LLM I found that the intends are bad
 buildFilterSpec :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> FilterSpec
 buildFilterSpec include exluce includeCats includeTags excludeCats exludeTags = 
   FilterSpec includes excludes False 

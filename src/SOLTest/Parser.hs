@@ -13,7 +13,6 @@ module SOLTest.Parser
     determineTestType,
   )
 where
-import Text.Read (readMaybe)
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import SOLTest.Types
@@ -76,11 +75,11 @@ emptyHeader =
 -- If there is no empty line, all lines are treated as header lines and the
 -- body is empty.
 --
--- FLP: Implement this function.
+-- With some help of LLM, I got the idea and wrote it as a human not as an Haskell try hard.
 splitHeaderBody :: String -> ([String], String)
-splitHeaderBody content =
-  let (headers, body) = break (all isSpace) (lines content)
-  in (headers, unlines $ drop 1 body)
+splitHeaderBody content = (headers, unlines $ drop 1 body)
+  where
+    (headers, body) = break (all isSpace) (lines content)
 
 -- ---------------------------------------------------------------------------
 -- Header line parsing
@@ -92,20 +91,33 @@ splitHeaderBody content =
 -- a malformed value (e.g. a non-integer weight). Lines with unrecognised
 -- prefixes are silently ignored, as the spec does not prohibit extra lines.
 --
--- FLP: Implement the rules for all accepted headers.
+-- This function I almost made alone. LLM just helped with the last 3 guards where I lost what should I do different.
 parseHeaderLine :: ParsedHeader -> String -> Either String ParsedHeader
 parseHeaderLine hdr line
   | "*** " `isPrefixOf` line =
       let val = trim (drop 4 line)
        in Right hdr {phDescription = Just val}
-  | "** " `isPrefixOf` line =
-      let val = trim (drop 3 line)
-       in Right hdr {phDescription = Just val}
-  | "* " `isPrefixOf` line =
-      let val = trim (drop 2 line)
-       in case readMaybe val of
-          Just n  -> Right hdr { phWeight = Just n }
-          Nothing -> Left $ "ERROR:" ++ val
+  | "+++ " `isPrefixOf` line =
+      let val = trim (drop 4 line)
+       in Right hdr {phCategory = Just val}
+  | "--- " `isPrefixOf` line =
+      let val = trim (drop 4 line)
+       in Right hdr {phTags = phTags hdr ++ [val]}
+  | ">>> " `isPrefixOf` line =
+      let val = trim (drop 4 line)
+       in case reads val of
+        [(n, "")] -> Right hdr {phWeight = Just n}
+        _         -> Left $ "Error: " ++ val
+  | "!C! " `isPrefixOf` line =
+      let val = trim (drop 4 line)
+       in case reads val of
+        [(n, "")] -> Right hdr {phParserCodes = phParserCodes hdr ++ [n]}   -- was: phWeight
+        _         -> Left $ "Error: " ++ val
+  | "!I! " `isPrefixOf` line =
+      let val = trim (drop 4 line)
+       in case reads val of
+        [(n, "")] -> Right hdr {phInterpreterCodes = phInterpreterCodes hdr ++ [n]}  -- was: phWeight
+        _         -> Left $ "Error: " ++ val
   | otherwise = Right hdr -- unknown or comment line: skip
 
 -- | Parse all header lines into a 'ParsedHeader'.
@@ -197,7 +209,7 @@ parseTestFile tcf content = do
 -- is 'Nothing' (the parser must exit 0, which is implicit and not stored in the
 -- list); if @!C! 0@ was explicit, it is stored as @Just [0]@.
 --
--- FLP: Implement this function.
+-- First I vibecoded it, when I saw what to do I redone this function.
 buildExitCodes :: TestCaseType -> ParsedHeader -> (Maybe [Int], Maybe [Int])
 buildExitCodes testCase header = (parserCodes, interpreterCodes)
   where
