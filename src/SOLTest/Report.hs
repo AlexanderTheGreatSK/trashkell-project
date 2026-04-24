@@ -15,6 +15,12 @@ where
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import SOLTest.Types
+    ( CategoryReport(..),
+      TestCaseDefinition(tcdPoints, tcdName, tcdCategory),
+      TestCaseReport(tcrResult),
+      TestReport(..),
+      TestStats,
+      UnexecutedReason )
 
 -- ---------------------------------------------------------------------------
 -- Top-level report assembly
@@ -59,12 +65,32 @@ buildReport discovered unexecuted mResults selected foundCount =
 -- FLP: Implement this function. The following functions may (or may not) come in handy:
 --      @Map.fromList@, @Map.foldlWithKey'@, @Map.empty@, @Map.lookup@, @Map.insertWith@,
 --      @Map.map@, @Map.fromList@
-groupByCategory ::
-  [TestCaseDefinition] ->
-  Map String TestCaseReport ->
-  Map String CategoryReport
-groupByCategory definitions results = undefined
+groupByCategory :: [TestCaseDefinition] -> Map String TestCaseReport -> Map String CategoryReport
+groupByCategory definitions =
+  Map.foldlWithKey' accumulate Map.empty
+  where
+    defMap = Map.fromList [(tcdName d, d) | d <- definitions]
 
+    accumulate acc testName report
+      | Just def <- Map.lookup testName defMap = addReport def acc testName report
+      | otherwise = acc
+
+    addReport def acc testName report =
+      Map.insertWith (\_ old -> mergeCat def report testName old) (tcdCategory def) newCat acc
+      where
+        newCat = CategoryReport
+                   { crTotalPoints  = tcdPoints def
+                   , crPassedPoints = if passed def report then tcdPoints def else 0
+                   , crTestResults  = Map.fromList [(testName, report)]
+                   }
+
+    mergeCat def report testName old =
+      old
+        { crTotalPoints  = crTotalPoints old + tcdPoints def
+        , crPassedPoints = crPassedPoints old + (if passed def report then tcdPoints def else 0)
+        , crTestResults  = Map.insertWith const testName report (crTestResults old)
+        }
+    passed _def report = tcrResult report == Passed
 -- ---------------------------------------------------------------------------
 -- Statistics
 -- ---------------------------------------------------------------------------
@@ -82,7 +108,7 @@ computeStats ::
   -- | Category reports (Nothing in dry-run mode).
   Maybe (Map String CategoryReport) ->
   TestStats
-computeStats foundCount loadedCount selectedCount mCategoryResults = undefined
+computeStats foundCount loadedCount selectedCount mCategoryResults = 
 
 -- ---------------------------------------------------------------------------
 -- Histogram
@@ -100,7 +126,20 @@ computeStats foundCount loadedCount selectedCount mCategoryResults = undefined
 --
 -- FLP: Implement this function.
 computeHistogram :: Map String CategoryReport -> Map String Int
-computeHistogram categories = undefined
+computeHistogram = Map.foldl' accumulate emptyHistogram
+  where
+    emptyHistogram = Map.fromList [(show 0 ++ "." ++ show n, 0) | n <- [0..9]]
+    binFor report = rateToBin rate
+      where
+        total  = crTotalPoints report
+        passed = crPassedPoints report
+        rate   = if total == 0
+                   then 0.0
+                   else fromIntegral passed / fromIntegral total :: Double
+
+    accumulate :: Map String Int -> CategoryReport -> Map String Int
+    accumulate hist report = Map.insertWith (+) (binFor report) 1 hist
+
 
 -- | Map a pass rate in @[0, 1]@ to a histogram bin key.
 --

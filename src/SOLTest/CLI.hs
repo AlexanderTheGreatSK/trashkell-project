@@ -152,9 +152,9 @@ filterSpecParser =
 -- | Assemble raw filter string lists into a 'FilterSpec'.
 --
 -- FLP: Implement this function (read the long comment above first).
-
 buildFilterSpec :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> FilterSpec
-buildFilterSpec i e ic it ec et = FilterSpec
-  (map ByAny i ++ map ByCategory ic ++ map ByTag it)
-  (map ByAny e ++ map ByCategory ec ++ map ByTag et)
-  False
+buildFilterSpec include exluce includeCats includeTags excludeCats exludeTags = 
+  FilterSpec includes excludes False 
+    where
+      includes = map ByAny include ++ map ByCategory includeCats ++ map ByTag includeTags
+      excludes = map ByAny exluce ++ map ByCategory excludeCats ++ map ByTag exludeTags
