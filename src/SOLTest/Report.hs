@@ -19,8 +19,9 @@ import SOLTest.Types
       TestCaseDefinition(tcdPoints, tcdName, tcdCategory),
       TestCaseReport(tcrResult),
       TestReport(..),
-      TestStats,
-      UnexecutedReason )
+      TestStats (TestStats, tsFoundTestFiles, tsLoadedTests, tsSelectedTests, tsPassedTests, tsHistogram),
+      UnexecutedReason
+    )
 
 -- ---------------------------------------------------------------------------
 -- Top-level report assembly
@@ -108,7 +109,15 @@ computeStats ::
   -- | Category reports (Nothing in dry-run mode).
   Maybe (Map String CategoryReport) ->
   TestStats
-computeStats foundCount loadedCount selectedCount mCategoryResults = 
+computeStats foundCount loadedCount selectedCount mCategoryResults =
+  TestStats
+    {
+      tsFoundTestFiles = foundCount,
+      tsLoadedTests = loadedCount,
+      tsSelectedTests = selectedCount,
+      tsPassedTests = maybe 0 (sum . map crPassedPoints . Map.elems) mCategoryResults,
+      tsHistogram = maybe Map.empty computeHistogram mCategoryResults
+    }
 
 -- ---------------------------------------------------------------------------
 -- Histogram
@@ -136,7 +145,6 @@ computeHistogram = Map.foldl' accumulate emptyHistogram
         rate   = if total == 0
                    then 0.0
                    else fromIntegral passed / fromIntegral total :: Double
-
     accumulate :: Map String Int -> CategoryReport -> Map String Int
     accumulate hist report = Map.insertWith (+) (binFor report) 1 hist
 
@@ -151,4 +159,4 @@ rateToBin rate =
       -- Format as "0.N" for bin index N
       whole = binIndex `div` 10
       frac = binIndex `mod` 10
-   in show whole ++ "." ++ show frac
+    in show whole ++ "." ++ show frac
